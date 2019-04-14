@@ -1,13 +1,13 @@
 <template>
-	<div ref="theCarousel" class="carousel">
-		<div :style="wrapperStyle" class="carousel-wrapper">
+	<div ref="theCarousel" class="carousel-wrapper">
+		<div :style="carouselStyle" class="carousel">
 			<div
 				v-for="(slide, index) in activeSlides"
 				:key="index"
-				:style="{'transform': `translateX(${calculateSlidePosition(index)})`}"
-				class="slide"
-				>
-				<div class="slide-wrapper">
+				:style="slideWrapperStyle"
+				class="slide-wrapper"
+			>
+				<div class="slide">
 					{{ slide }}
 				</div>
 			</div>
@@ -42,7 +42,15 @@ export default {
 		},
 		lazyLoadedSlides: {
 			type: Boolean,
-			default: true
+			default: false
+		},
+		transitionSpeed: {
+			type: Number,
+			default: 1000
+		},
+		spaceBetweenSlides: {
+			type: Number,
+			default: 20
 		}
 	},
 	data() {
@@ -59,15 +67,26 @@ export default {
 		}
 	},
 	mounted() {
+		window.addEventListener("resize", this.onResize);
 		this.calculateSlideWidth();
 	},
 	computed: {
-		wrapperStyle() {
+		carouselStyle() {
 			let style = {};
 
-			style["flex-basis"] = this.slideWidth + "px";
-			style.transform = `translateX(${this.currentPage * -100}%)`;
-			style.transition = "transform 1s ease-out";
+			style.transform = `translateX(calc(${this.currentPage * -100}% - ${this.currentPage * this.spaceBetweenSlides}px )`;
+			style.transition = `transform ${this.transitionSpeed / 1000}s ease-out`;
+
+			return style;
+		},
+		slideWrapperStyle() {
+			let style = {};
+
+			style.width = this.slideWidth + "px";
+			style["margin-right"] = this.spaceBetweenSlides + "px";
+
+			style.transform = [];
+			style.transform.push(`translateX(${this.calculateSlidePosition()}px)`);
 
 			return style;
 		},
@@ -89,6 +108,9 @@ export default {
 		}
 	},
 	methods: {
+		onResize() {
+			this.calculateSlideWidth();
+		},
 		advance(value) {
 			if (this.currentPage + value < 0) {
 				this.currentPage = 0;
@@ -101,32 +123,35 @@ export default {
 		calculateSlideWidth() {
 			let carousel = this.$refs.theCarousel;
 
-			this.slideWidth = carousel.offsetWidth / this.slidesPerPage;
+			this.slideWidth = carousel.offsetWidth / this.slidesPerPage - ((this.slidesPerPage - 1) * this.spaceBetweenSlides / this.slidesPerPage);
 		},
-		// For Lazy Loading Slides
 		calculateSlidePosition(index) {
-			return (this.currentPage - 1 >= 0 ? this.currentPage - 1 : 0)  * this.slidesPerPage * this.slideWidth + "px";
+			if(this.lazyLoadedSlides) {
+				return (this.currentPage - 1 >= 0 ? this.currentPage - 1 : 0)  * this.slidesPerPage * this.slideWidth;
+			} else {
+				return 0;
+			}
+
 		}
 	}
 }
 </script>
 
 <style scoped>
-	.carousel {
+	.carousel-wrapper {
 		position: relative;
 		width: 100%;
 		overflow: hidden;
 		box-sizing: border-box;
 	}
 
-	.carousel-wrapper {
+	.carousel {
 		display: flex;
 		flex-direction: row;
 		width: 100%;
 	}
 
-	.slide {
-		flex-basis: inherit;
+	.slide-wrapper {
 		flex-grow: 0;
 		flex-shrink: 0;
 		height: 500px;
