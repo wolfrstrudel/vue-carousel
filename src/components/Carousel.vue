@@ -1,6 +1,6 @@
 <template>
-	<div ref="theCarousel" class="carousel-wrapper">
-		<div :style="carouselStyle" class="carousel">
+	<div ref="theCarouselWrapper" class="carousel-wrapper">
+		<div ref="theCarousel" :style="carouselStyle" class="carousel">
 			<div
 				v-for="(slide, index) in activeSlides"
 				:key="index"
@@ -45,7 +45,7 @@ export default {
 			default: false
 		},
 		transitionSpeed: {
-			type: Number,
+			type: [Number, Object],
 			default: 1000
 		},
 		spaceBetweenSlides: {
@@ -55,27 +55,48 @@ export default {
 	},
 	data() {
 		return {
+			isMounted: false,
+			isDragging: false,
+			windowWidth: window.innerWidth,
 			slideCount: 100, //temporary
 			slideWidth: null,
 			currentPage: 0,
-			slides: []
+			slides: [],
+			startDragPosition: {x: 0, y: 0},
+			draggedOffset: {x: 0, y: 0}
 		}
 	},
 	created() {
-		for(var i = 1; i <= 100; i++ ) {
+		for(var i = 1; i <= 20; i++ ) {
 			this.slides.push(i);
 		}
+
+		let defaultValue = 1000;
 	},
 	mounted() {
+		this.isMounted = true;
+
 		window.addEventListener("resize", this.onResize);
 		this.calculateSlideWidth();
+
+		//Touch Interaction
+		let carousel = this.$refs.theCarousel;
+		carousel.addEventListener("touchstart", this.onTouchStart);
+		carousel.addEventListener("touchmove", this.onTouchMove);
+		carousel.addEventListener("touchend", this.onTouchEnd);
 	},
 	computed: {
+		offset() {
+			if(this.isMounted) 
+				return {x: this.currentPage * -(this.$refs.theCarousel.offsetWidth + this.spaceBetweenSlides) - this.draggedOffset.x};
+			else
+				return {x: 0};
+		},
 		carouselStyle() {
 			let style = {};
 
-			style.transform = `translateX(calc(${this.currentPage * -100}% - ${this.currentPage * this.spaceBetweenSlides}px )`;
-			style.transition = `transform ${this.transitionSpeed / 1000}s ease-out`;
+			style.transform = `translateX(${this.offset.x}px)`;
+			style.transition = this.isDragging ? "none" : `transform ${this.activeTransitionSpeed / 1000}s ease-out`;
 
 			return style;
 		},
@@ -91,14 +112,22 @@ export default {
 			return style;
 		},
 		pageCount() {
-			return Math.ceil(this.slides.length / this.slidesPerPage);
+			return Math.ceil(this.slides.length / this.activeSlidesPerPage);
+		},
+		activeSlidesPerPage() {
+			let defaultValue = 1;
+			return this.extractActiveProperty(this.slidesPerPage, defaultValue);
+		},
+		activeTransitionSpeed() {
+			let defaultValue = 1000;
+			return this.extractActiveProperty(this.transitionSpeed, defaultValue);
 		},
 		activeSlides() {
 			if (this.lazyLoadedSlides) {
-				let firstSlideIndex = ( this.currentPage - 1 ) * this.slidesPerPage;
+				let firstSlideIndex = ( this.currentPage - 1 ) * this.activeSlidesPerPage;
 				firstSlideIndex = firstSlideIndex >= 0 ? firstSlideIndex : 0;
 
-				let lastSlideIndex = firstSlideIndex + ( 3 * this.slidesPerPage) - 1;
+				let lastSlideIndex = firstSlideIndex + ( 3 * this.activeSlidesPerPage) - 1;
 				lastSlideIndex = lastSlideIndex < this.slides.length ? lastSlideIndex : ( this.slides.length - 1);
 
 				return this.slides.slice(firstSlideIndex, lastSlideIndex + 1);
@@ -108,8 +137,18 @@ export default {
 		}
 	},
 	methods: {
-		onResize() {
-			this.calculateSlideWidth();
+		extractActiveProperty(property, defaultValue) {
+			if(!this.isObject(property) && typeof property !== 'undefined') {
+				return property;
+			} else if (this.isObject(property)) {
+				let windowWidth = this.windowWidth,
+					activeProperty = property[Math.min.apply(null,Object.keys(property).filter(x => {return x >= windowWidth}))];
+
+				if (Number.isInteger(activeProperty)) return activeProperty;
+				else if (typeof property.default !== 'undefined') return property.default;
+			}
+
+			return defaultValue;
 		},
 		advance(value) {
 			if (this.currentPage + value < 0) {
@@ -121,17 +160,53 @@ export default {
 			}
 		},
 		calculateSlideWidth() {
-			let carousel = this.$refs.theCarousel;
+			let carousel = this.$refs.theCarouselWrapper;
 
-			this.slideWidth = carousel.offsetWidth / this.slidesPerPage - ((this.slidesPerPage - 1) * this.spaceBetweenSlides / this.slidesPerPage);
+			this.slideWidth = carousel.offsetWidth / this.activeSlidesPerPage - ((this.activeSlidesPerPage - 1) * this.spaceBetweenSlides / this.activeSlidesPerPage);
 		},
-		calculateSlidePosition(index) {
+		calculateSlidePosition() {
 			if(this.lazyLoadedSlides) {
-				return (this.currentPage - 1 >= 0 ? this.currentPage - 1 : 0)  * this.slidesPerPage * this.slideWidth;
+				return (this.currentPage - 1 >= 0 ? this.currentPage - 1 : 0)  * this.activeSlidesPerPage * this.slideWidth;
 			} else {
 				return 0;
 			}
+		},
+		isObject(value) {
+			return value && typeof value === 'object' && value.constructor === Object;
+		},
+		updateWindowWidth() {
+			this.windowWidth = window.innerWidth;
+		},
 
+		// Event Listener Functions
+		onTouchStart(e) {
+			let touch = e.touches[0];
+
+			this.isDragging = true;
+
+			this.startDragPosition.x = touch.clientX;
+			this.startDragPosition.y = touch.clientY;
+		},
+		onTouchMove(e) {
+			let touch = e.touches[0],
+				dragPosition = {x: touch.clientX};
+
+			this.draggedOffset.x = this.startDragPosition.x - dragPosition.x;
+		},
+		onTouchEnd(e) {
+			this.isDragging = false;
+
+			if (Math.abs(this.draggedOffset.x) > 100) {
+				this.advance(Math.sign(this.draggedOffset.x));
+			}
+
+			this.draggedOffset.x = 0;
+		},
+		onResize() {
+			window.requestAnimationFrame(() => {
+				this.updateWindowWidth();
+			});
+			this.calculateSlideWidth();
 		}
 	}
 }
