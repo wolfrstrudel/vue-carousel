@@ -63,7 +63,8 @@ export default {
 			currentPage: 0,
 			slides: [],
 			startDragPosition: {x: 0, y: 0},
-			draggedOffset: {x: 0, y: 0}
+			draggedOffset: {x: 0, y: 0},
+			dragType: ""
 		}
 	},
 	created() {
@@ -81,9 +82,13 @@ export default {
 
 		//Touch Interaction
 		let carousel = this.$refs.theCarousel;
+		carousel.addEventListener("mousedown", this.onMouseDown);
 		carousel.addEventListener("touchstart", this.onTouchStart);
-		carousel.addEventListener("touchmove", this.onTouchMove);
-		carousel.addEventListener("touchend", this.onTouchEnd);
+	},
+	beforeDestroy() {
+		let carousel = this.$refs.theCarousel;
+		carousel.removeEventListener("mousedown", this.onMouseDown);
+		carousel.removeEventListener("touchstart", this.onTouchStart);
 	},
 	computed: {
 		offset() {
@@ -104,7 +109,7 @@ export default {
 			let style = {};
 
 			style.width = this.slideWidth + "px";
-			style["margin-right"] = this.spaceBetweenSlides + "px";
+			style["padding-right"] = this.spaceBetweenSlides + "px";
 
 			style.transform = [];
 			style.transform.push(`translateX(${this.calculateSlidePosition()}px)`);
@@ -179,28 +184,57 @@ export default {
 		},
 
 		// Event Listener Functions
+		onMouseDown(e) {
+			this.dragType = "mouse";
+			this.onDragStart(e);
+		},
 		onTouchStart(e) {
-			let touch = e.touches[0];
-
+			this.dragType = "touch";
+			this.onDragStart(e);
+		},
+		onDragStart(e) {
+			console.log("here");
 			this.isDragging = true;
 
-			this.startDragPosition.x = touch.clientX;
-			this.startDragPosition.y = touch.clientY;
+			let carousel = this.$refs.theCarousel,
+				dragEvent = null;
+
+			if (this.dragType === "mouse") {
+				dragEvent = e;
+				carousel.addEventListener("mousemove", this.onDrag);
+				carousel.addEventListener("mouseup", this.onDragEnd);
+			} else {
+				dragEvent = e.touches[0];
+				carousel.addEventListener("touchmove", this.onDrag);
+				carousel.addEventListener("touchend", this.onDragEnd);
+			}
+
+			this.startDragPosition.x = dragEvent.clientX;
+			this.startDragPosition.y = dragEvent.clientY;
 		},
-		onTouchMove(e) {
-			let touch = e.touches[0],
-				dragPosition = {x: touch.clientX};
+		onDrag(e) {
+			let dragEvent = (this.dragType === "mouse" ? event : event.touches[0]),
+				dragPosition = {x: dragEvent.clientX};
 
 			this.draggedOffset.x = this.startDragPosition.x - dragPosition.x;
 		},
-		onTouchEnd(e) {
-			this.isDragging = false;
-
+		onDragEnd() {
 			if (Math.abs(this.draggedOffset.x) > 100) {
 				this.advance(Math.sign(this.draggedOffset.x));
 			}
 
 			this.draggedOffset.x = 0;
+
+			let carousel = this.$refs.theCarousel
+			if (this.dragType === "mouse") {
+				carousel.removeEventListener("mousemove", this.onDrag);
+				carousel.removeEventListener("mouseup", this.onDragEnd);
+			} else {
+				carousel.removeEventListener("touchmove", this.onDrag);
+				carousel.removeEventListener("touchend", this.onDragEnd);
+			}
+
+			this.isDragging = false;
 		},
 		onResize() {
 			window.requestAnimationFrame(() => {
@@ -230,9 +264,13 @@ export default {
 		flex-grow: 0;
 		flex-shrink: 0;
 		height: 500px;
+		box-sizing: border-box;
+	}
+
+	.slide {
+		height: 100%;
 		background-color: #f5f5f5;
 		border: 1px solid #cccccc;
-		box-sizing: border-box;
 	}
 
 	.pagination-button {
