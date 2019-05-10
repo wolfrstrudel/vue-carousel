@@ -36,6 +36,10 @@
 export default {
 	name: "Carousel",
 	props: {
+		initialPage: {
+			type: Number,
+			default: 5
+		},
 		slidesPerPage: {
 			type: Number,
 			default: 3
@@ -55,12 +59,13 @@ export default {
 	},
 	data() {
 		return {
+			canTransition: false,
 			isMounted: false,
 			isDragging: false,
 			windowWidth: window.innerWidth,
 			slideCount: 100, //temporary
 			slideWidth: null,
-			currentPage: 0,
+			currentPage: this.initialPage,
 			slides: [],
 			startDragPosition: {x: 0, y: 0},
 			draggedOffset: {x: 0, y: 0},
@@ -92,16 +97,18 @@ export default {
 	},
 	computed: {
 		offset() {
-			if(this.isMounted) 
+			if(this.isMounted) {
+				if (!this.canTransition) window.requestAnimationFrame(() => this.canTransition = true);
 				return {x: this.currentPage * -(this.$refs.theCarousel.offsetWidth + this.spaceBetweenSlides) - this.draggedOffset.x};
-			else
-				return {x: 0};
+			} else {
+				return {x: null};
+			}
 		},
 		carouselStyle() {
 			let style = {};
 
 			style.transform = `translateX(${this.offset.x}px)`;
-			style.transition = this.isDragging ? "none" : `transform ${this.activeTransitionSpeed / 1000}s ease-out`;
+			style.transition = !this.canTransition || this.isDragging ? "none" : `transform ${this.activeTransitionSpeed / 1000}s ease-out`;
 
 			return style;
 		},
@@ -167,7 +174,7 @@ export default {
 		calculateSlideWidth() {
 			let carousel = this.$refs.theCarouselWrapper;
 
-			this.slideWidth = carousel.offsetWidth / this.activeSlidesPerPage - ((this.activeSlidesPerPage - 1) * this.spaceBetweenSlides / this.activeSlidesPerPage);
+			this.slideWidth = (carousel.offsetWidth + this.spaceBetweenSlides) / this.activeSlidesPerPage;
 		},
 		calculateSlidePosition() {
 			if(this.lazyLoadedSlides) {
@@ -193,7 +200,6 @@ export default {
 			this.onDragStart(e);
 		},
 		onDragStart(e) {
-			console.log("here");
 			this.isDragging = true;
 
 			let carousel = this.$refs.theCarousel,
@@ -257,7 +263,6 @@ export default {
 	.carousel {
 		display: flex;
 		flex-direction: row;
-		width: 100%;
 	}
 
 	.slide-wrapper {
