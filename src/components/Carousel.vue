@@ -108,7 +108,7 @@ export default {
 			let style = {};
 
 			style.transform = `translateX(${this.offset.x}px)`;
-			style.transition = !this.canTransition || this.isDragging ? "none" : `transform ${this.activeTransitionSpeed / 1000}s ease-out`;
+			style.transition = !this.canTransition || this.isDragging ? "none" : `transform ${this.transitionSpeed / 1000}s ease-out`;
 
 			return style;
 		},
@@ -124,22 +124,14 @@ export default {
 			return style;
 		},
 		pageCount() {
-			return Math.ceil(this.slides.length / this.activeSlidesPerPage);
-		},
-		activeSlidesPerPage() {
-			let defaultValue = 1;
-			return this.extractActiveProperty(this.slidesPerPage, defaultValue);
-		},
-		activeTransitionSpeed() {
-			let defaultValue = 1000;
-			return this.extractActiveProperty(this.transitionSpeed, defaultValue);
+			return Math.ceil(this.slides.length / this.slidesPerPage);
 		},
 		activeSlides() {
 			if (this.lazyLoadedSlides) {
-				let firstSlideIndex = ( this.currentPage - 1 ) * this.activeSlidesPerPage;
+				let firstSlideIndex = ( this.currentPage - 1 ) * this.slidesPerPage;
 				firstSlideIndex = firstSlideIndex >= 0 ? firstSlideIndex : 0;
 
-				let lastSlideIndex = firstSlideIndex + ( 3 * this.activeSlidesPerPage) - 1;
+				let lastSlideIndex = firstSlideIndex + ( 3 * this.slidesPerPage) - 1;
 				lastSlideIndex = lastSlideIndex < this.slides.length ? lastSlideIndex : ( this.slides.length - 1);
 
 				return this.slides.slice(firstSlideIndex, lastSlideIndex + 1);
@@ -149,19 +141,6 @@ export default {
 		}
 	},
 	methods: {
-		extractActiveProperty(property, defaultValue) {
-			if(!this.isObject(property) && typeof property !== 'undefined') {
-				return property;
-			} else if (this.isObject(property)) {
-				let windowWidth = this.windowWidth,
-					activeProperty = property[Math.min.apply(null,Object.keys(property).filter(x => {return x >= windowWidth}))];
-
-				if (Number.isInteger(activeProperty)) return activeProperty;
-				else if (typeof property.default !== 'undefined') return property.default;
-			}
-
-			return defaultValue;
-		},
 		advance(value) {
 			if (this.currentPage + value < 0) {
 				this.currentPage = 0;
@@ -174,17 +153,14 @@ export default {
 		calculateSlideWidth() {
 			let carousel = this.$refs.theCarouselWrapper;
 
-			this.slideWidth = (carousel.offsetWidth + this.spaceBetweenSlides) / this.activeSlidesPerPage;
+			this.slideWidth = (carousel.offsetWidth + this.spaceBetweenSlides) / this.slidesPerPage;
 		},
 		calculateSlidePosition() {
 			if(this.lazyLoadedSlides) {
-				return (this.currentPage - 1 >= 0 ? this.currentPage - 1 : 0)  * this.activeSlidesPerPage * this.slideWidth;
+				return (this.currentPage - 1 >= 0 ? this.currentPage - 1 : 0)  * this.slidesPerPage * this.slideWidth;
 			} else {
 				return 0;
 			}
-		},
-		isObject(value) {
-			return value && typeof value === 'object' && value.constructor === Object;
 		},
 		updateWindowWidth() {
 			this.windowWidth = window.innerWidth;
