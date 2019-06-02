@@ -13,19 +13,19 @@
 			</div>
 		</div>
 
-		<div class="pagination-button pagination-button-previous" @click="advance(-5)">
+		<div class="pagination-button pagination-button-previous" @click="advancePage(-5)">
 			Previous 5
 		</div>
 
-		<div class="pagination-button pagination-button-previous" @click="advance(-1)">
+		<div class="pagination-button pagination-button-previous" @click="advancePage(-1)">
 			Previous
 		</div>
 
-		<div class="pagination-button pagination-button-next" @click="advance(1)">
+		<div class="pagination-button pagination-button-next" @click="advancePage(1)">
 			Next
 		</div>
 
-		<div class="pagination-button pagination-button-next" @click="advance(5)">
+		<div class="pagination-button pagination-button-next" @click="advancePage(5)">
 			Next 5
 		</div>
 	</div>
@@ -38,7 +38,7 @@ export default {
 	props: {
 		initialPage: {
 			type: Number,
-			default: 5
+			default: 0
 		},
 		slidesPerPage: {
 			type: Number,
@@ -46,7 +46,7 @@ export default {
 		},
 		lazyLoadedSlides: {
 			type: Boolean,
-			default: false
+			default: true
 		},
 		transitionSpeed: {
 			type: [Number, Object],
@@ -55,16 +55,20 @@ export default {
 		spaceBetweenSlides: {
 			type: Number,
 			default: 20
+		},
+		loop: {
+			type: Boolean,
+			default: false
 		}
 	},
 	data() {
 		return {
+			slideCount: 20, //temporary
 			canTransition: false,
 			isMounted: false,
 			isDragging: false,
 			windowWidth: window.innerWidth,
-			slideCount: 100, //temporary
-			slideWidth: null,
+			carouselWidth: null,
 			currentPage: this.initialPage,
 			slides: [],
 			startDragPosition: {x: 0, y: 0},
@@ -73,17 +77,13 @@ export default {
 		}
 	},
 	created() {
-		for(var i = 1; i <= 20; i++ ) {
+		for(var i = 1; i <= this.slideCount; i++ ) {
 			this.slides.push(i);
 		}
-
-		let defaultValue = 1000;
 	},
 	mounted() {
-		this.isMounted = true;
-
 		window.addEventListener("resize", this.onResize);
-		this.calculateSlideWidth();
+		this.updateCarouselWidth();
 
 		//Touch Interaction
 		let carousel = this.$refs.theCarousel;
@@ -95,14 +95,17 @@ export default {
 		carousel.removeEventListener("mousedown", this.onMouseDown);
 		carousel.removeEventListener("touchstart", this.onTouchStart);
 	},
+	watch: {
+		currentPage(newPage) {
+			if(!this.loop) {
+				if(newPage < 0) this.currentPage = 0;
+				if(newPage > this.pageCount - 1) this.currentPage = this.pageCount - 1;
+			}
+		}
+	},
 	computed: {
 		offset() {
-			if(this.isMounted) {
-				if (!this.canTransition) window.requestAnimationFrame(() => this.canTransition = true);
-				return {x: this.currentPage * -(this.$refs.theCarousel.offsetWidth + this.spaceBetweenSlides) - this.draggedOffset.x};
-			} else {
-				return {x: null};
-			}
+			return {x: this.currentPage * -(this.carouselWidth + this.spaceBetweenSlides) - this.draggedOffset.x};
 		},
 		carouselStyle() {
 			let style = {};
@@ -119,48 +122,73 @@ export default {
 			style["padding-right"] = this.spaceBetweenSlides + "px";
 
 			style.transform = [];
-			style.transform.push(`translateX(${this.calculateSlidePosition()}px)`);
+			style.transform.push(`translateX(${this.slidePosition}px)`);
 
 			return style;
 		},
+		slidePosition() {
+			if(this.lazyLoadedSlides) {
+				return this.firstLoadedPage * this.slidesPerPage * this.slideWidth;
+			} 
+				
+			return 0;
+		},
+		slideWidth() {
+			return (this.carouselWidth + this.spaceBetweenSlides) / this.slidesPerPage;
+		},
 		pageCount() {
-			return Math.ceil(this.slides.length / this.slidesPerPage);
+			return Math.ceil(this.slideCount / this.slidesPerPage);
+		},
+		firstLoadedPage() {
+			if(this.lazyLoadedSlides && this.loop) return this.currentPage - 1;
+			else if (this.lazyLoadedSlides) return this.currentPage - 1 >= 0 ? this.currentPage - 1 : 0;
+			else if (this.loop) {
+				// Need to figure out what happens when looping with no lazy loading
+			} else return 0;
+		},
+		firstSlideIndex() {
+			let index = this.firstLoadedPage * this.slidesPerPage;
+
+			if (this.loop) {
+				index = index % this.slideCount;
+				return index >= 0 ? index : index + this.slideCount;
+			} else {
+				return index >= 0 ? index : 0;
+			}
+
+			return index;
+		},
+		lastSlideIndex() {
+			let index = this.firstSlideIndex + ( 3 * this.slidesPerPage ) - 1;
+
+			if (this.loop) {
+				index = index % this.slideCount;
+				return index >= 0 ? index : index + this.slideCount;
+			} else {
+				return index >= 0 ? index : 0;
+			}
 		},
 		activeSlides() {
 			if (this.lazyLoadedSlides) {
-				let firstSlideIndex = ( this.currentPage - 1 ) * this.slidesPerPage;
-				firstSlideIndex = firstSlideIndex >= 0 ? firstSlideIndex : 0;
+				if(this.firstSlideIndex > this.lastSlideIndex) {
+					let firstSlides = this.slides.slice(this.firstSlideIndex, this.slideCount);
+					let lastSlides = this.slides.slice(0, this.lastSlideIndex + 1);
 
-				let lastSlideIndex = firstSlideIndex + ( 3 * this.slidesPerPage) - 1;
-				lastSlideIndex = lastSlideIndex < this.slides.length ? lastSlideIndex : ( this.slides.length - 1);
+					return [...firstSlides, ...lastSlides]
+				}
 
-				return this.slides.slice(firstSlideIndex, lastSlideIndex + 1);
+				return this.slides.slice(this.firstSlideIndex, this.lastSlideIndex + 1);
 			} else {
 				return this.slides;
 			}
 		}
 	},
 	methods: {
-		advance(value) {
-			if (this.currentPage + value < 0) {
-				this.currentPage = 0;
-			} else if (this.currentPage + value > this.pageCount - 1) {
-				this.currentPage = this.pageCount - 1;
-			} else {
-				this.currentPage += value;
-			}
+		advancePage(value) {
+			this.currentPage += value;
 		},
-		calculateSlideWidth() {
-			let carousel = this.$refs.theCarouselWrapper;
-
-			this.slideWidth = (carousel.offsetWidth + this.spaceBetweenSlides) / this.slidesPerPage;
-		},
-		calculateSlidePosition() {
-			if(this.lazyLoadedSlides) {
-				return (this.currentPage - 1 >= 0 ? this.currentPage - 1 : 0)  * this.slidesPerPage * this.slideWidth;
-			} else {
-				return 0;
-			}
+		updateCarouselWidth() {
+			this.carouselWidth = this.$refs.theCarousel.offsetWidth;
 		},
 		updateWindowWidth() {
 			this.windowWidth = window.innerWidth;
@@ -202,7 +230,7 @@ export default {
 		},
 		onDragEnd() {
 			if (Math.abs(this.draggedOffset.x) > 100) {
-				this.advance(Math.sign(this.draggedOffset.x));
+				this.advancePage(Math.sign(this.draggedOffset.x));
 			}
 
 			this.draggedOffset.x = 0;
@@ -220,42 +248,42 @@ export default {
 		},
 		onResize() {
 			window.requestAnimationFrame(() => {
+				this.updateCarouselWidth();
 				this.updateWindowWidth();
 			});
-			this.calculateSlideWidth();
 		}
 	}
 }
 </script>
 
 <style scoped>
-	.carousel-wrapper {
-		position: relative;
-		width: 100%;
-		overflow: hidden;
-		box-sizing: border-box;
-	}
+.carousel-wrapper {
+	position: relative;
+	width: 100%;
+	overflow: hidden;
+	box-sizing: border-box;
+}
 
-	.carousel {
-		display: flex;
-		flex-direction: row;
-	}
+.carousel {
+	display: flex;
+	flex-direction: row;
+}
 
-	.slide-wrapper {
-		flex-grow: 0;
-		flex-shrink: 0;
-		height: 500px;
-		box-sizing: border-box;
-	}
+.slide-wrapper {
+	flex-grow: 0;
+	flex-shrink: 0;
+	height: 500px;
+	box-sizing: border-box;
+}
 
-	.slide {
-		height: 100%;
-		background-color: #f5f5f5;
-		border: 1px solid #cccccc;
-	}
+.slide {
+	height: 100%;
+	background-color: #f5f5f5;
+	border: 1px solid #cccccc;
+}
 
-	.pagination-button {
-		display: inline;
-		cursor: pointer;
-	}
+.pagination-button {
+	display: inline;
+	cursor: pointer;
+}
 </style>
