@@ -64,8 +64,6 @@ export default {
 	data() {
 		return {
 			slideCount: 20, //temporary
-			canTransition: false,
-			isMounted: false,
 			isDragging: false,
 			windowWidth: window.innerWidth,
 			carouselWidth: null,
@@ -104,6 +102,9 @@ export default {
 		}
 	},
 	computed: {
+		canTransition() {
+			return !this.isDragging;
+		},
 		offset() {
 			return {x: this.currentPage * -(this.carouselWidth + this.spaceBetweenSlides) - this.draggedOffset.x};
 		},
@@ -111,7 +112,7 @@ export default {
 			let style = {};
 
 			style.transform = `translateX(${this.offset.x}px)`;
-			style.transition = !this.canTransition || this.isDragging ? "none" : `transform ${this.transitionSpeed / 1000}s ease-out`;
+			style.transition = !this.canTransition ? "none" : `transform ${this.transitionSpeed / 1000}s ease-out`;
 
 			return style;
 		},
