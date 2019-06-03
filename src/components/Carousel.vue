@@ -80,18 +80,18 @@ export default {
 		}
 	},
 	mounted() {
-		window.addEventListener("resize", this.onResize);
-		this.updateCarouselWidth();
+		window.addEventListener("resize", this._onResize);
+		this._updateCarouselWidth();
 
 		//Touch Interaction
 		let carousel = this.$refs.theCarousel;
-		carousel.addEventListener("mousedown", this.onMouseDown);
-		carousel.addEventListener("touchstart", this.onTouchStart);
+		carousel.addEventListener("mousedown", this._onMouseDown);
+		carousel.addEventListener("touchstart", this._onTouchStart);
 	},
 	beforeDestroy() {
 		let carousel = this.$refs.theCarousel;
-		carousel.removeEventListener("mousedown", this.onMouseDown);
-		carousel.removeEventListener("touchstart", this.onTouchStart);
+		carousel.removeEventListener("mousedown", this._onMouseDown);
+		carousel.removeEventListener("touchstart", this._onTouchStart);
 	},
 	watch: {
 		currentPage(newPage) {
@@ -185,26 +185,29 @@ export default {
 		}
 	},
 	methods: {
+		// Public Functions
 		advancePage(value) {
 			this.currentPage += value;
 		},
-		updateCarouselWidth() {
+
+		// Private Functions
+		_updateCarouselWidth() {
 			this.carouselWidth = this.$refs.theCarousel.offsetWidth;
 		},
-		updateWindowWidth() {
+		_updateWindowWidth() {
 			this.windowWidth = window.innerWidth;
 		},
 
 		// Event Listener Functions
-		onMouseDown(e) {
+		_onMouseDown(e) {
 			this.dragType = "mouse";
-			this.onDragStart(e);
+			this._onDragStart(e);
 		},
-		onTouchStart(e) {
+		_onTouchStart(e) {
 			this.dragType = "touch";
-			this.onDragStart(e);
+			this._onDragStart(e);
 		},
-		onDragStart(e) {
+		_onDragStart(e) {
 			this.isDragging = true;
 
 			let carousel = this.$refs.theCarousel,
@@ -212,24 +215,24 @@ export default {
 
 			if (this.dragType === "mouse") {
 				dragEvent = e;
-				carousel.addEventListener("mousemove", this.onDrag);
-				carousel.addEventListener("mouseup", this.onDragEnd);
+				carousel.addEventListener("mousemove", this._onDrag);
+				carousel.addEventListener("mouseup", this._onDragEnd);
 			} else {
 				dragEvent = e.touches[0];
-				carousel.addEventListener("touchmove", this.onDrag);
-				carousel.addEventListener("touchend", this.onDragEnd);
+				carousel.addEventListener("touchmove", this._onDrag);
+				carousel.addEventListener("touchend", this._onDragEnd);
 			}
 
 			this.startDragPosition.x = dragEvent.clientX;
 			this.startDragPosition.y = dragEvent.clientY;
 		},
-		onDrag(e) {
+		_onDrag(e) {
 			let dragEvent = (this.dragType === "mouse" ? event : event.touches[0]),
 				dragPosition = {x: dragEvent.clientX};
 
 			this.draggedOffset.x = this.startDragPosition.x - dragPosition.x;
 		},
-		onDragEnd() {
+		_onDragEnd() {
 			if (Math.abs(this.draggedOffset.x) > 100) {
 				this.advancePage(Math.sign(this.draggedOffset.x));
 			}
@@ -238,19 +241,19 @@ export default {
 
 			let carousel = this.$refs.theCarousel
 			if (this.dragType === "mouse") {
-				carousel.removeEventListener("mousemove", this.onDrag);
-				carousel.removeEventListener("mouseup", this.onDragEnd);
+				carousel.removeEventListener("mousemove", this._onDrag);
+				carousel.removeEventListener("mouseup", this._onDragEnd);
 			} else {
-				carousel.removeEventListener("touchmove", this.onDrag);
-				carousel.removeEventListener("touchend", this.onDragEnd);
+				carousel.removeEventListener("touchmove", this._onDrag);
+				carousel.removeEventListener("touchend", this._onDragEnd);
 			}
 
 			this.isDragging = false;
 		},
-		onResize() {
+		_onResize() {
 			window.requestAnimationFrame(() => {
-				this.updateCarouselWidth();
-				this.updateWindowWidth();
+				this._updateCarouselWidth();
+				this._updateWindowWidth();
 			});
 		}
 	}
