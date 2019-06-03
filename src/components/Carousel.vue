@@ -48,7 +48,7 @@ export default {
 			type: Boolean,
 			default: false
 		},
-		transitionSpeed: {
+		transitionLength: {
 			type: Number,
 			default: 1000
 		},
@@ -105,7 +105,7 @@ export default {
 			let style = {};
 
 			style.transform = `translateX(${this.offset.x}px)`;
-			style.transition = !this.canTransition ? "none" : `transform ${this.transitionSpeed / 1000}s ease-out`;
+			style.transition = !this.canTransition ? "none" : `transform ${this.transitionLength / 1000}s ease-out`;
 
 			return style;
 		},
