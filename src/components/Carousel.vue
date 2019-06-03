@@ -1,15 +1,12 @@
 <template>
-	<div ref="theCarouselWrapper" class="carousel-wrapper">
+	<div class="carousel-wrapper">
 		<div ref="theCarousel" :style="carouselStyle" class="carousel">
-			<div
-				v-for="(slide, index) in activeSlides"
-				:key="index"
-				:style="slideWrapperStyle"
+			<div 
+				v-for="(slide,index) in activeSlides" :key="index"
 				class="slide-wrapper"
+				:style="slideWrapperStyle"
 			>
-				<div class="slide">
-					{{ slide }}
-				</div>
+				<slot v-bind="slide" />
 			</div>
 		</div>
 
@@ -32,10 +29,13 @@
 </template>
 
 <script>
-
 export default {
 	name: "Carousel",
 	props: {
+		slides: {
+			type: Array,
+			default: () => []
+		},
 		initialPage: {
 			type: Number,
 			default: 0
@@ -46,10 +46,10 @@ export default {
 		},
 		lazyLoadedSlides: {
 			type: Boolean,
-			default: true
+			default: false
 		},
 		transitionSpeed: {
-			type: [Number, Object],
+			type: Number,
 			default: 1000
 		},
 		spaceBetweenSlides: {
@@ -63,20 +63,13 @@ export default {
 	},
 	data() {
 		return {
-			slideCount: 20, //temporary
 			isDragging: false,
 			windowWidth: window.innerWidth,
 			carouselWidth: null,
 			currentPage: this.initialPage,
-			slides: [],
 			startDragPosition: {x: 0, y: 0},
 			draggedOffset: {x: 0, y: 0},
 			dragType: ""
-		}
-	},
-	created() {
-		for(var i = 1; i <= this.slideCount; i++ ) {
-			this.slides.push(i);
 		}
 	},
 	mounted() {
@@ -276,14 +269,7 @@ export default {
 .slide-wrapper {
 	flex-grow: 0;
 	flex-shrink: 0;
-	height: 500px;
 	box-sizing: border-box;
-}
-
-.slide {
-	height: 100%;
-	background-color: #f5f5f5;
-	border: 1px solid #cccccc;
 }
 
 .pagination-button {
