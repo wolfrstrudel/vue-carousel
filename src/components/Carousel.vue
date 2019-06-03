@@ -130,6 +130,9 @@ export default {
 		slideWidth() {
 			return (this.carouselWidth + this.spaceBetweenSlides) / this.slidesPerPage;
 		},
+		slideCount() {
+			return this.slides.length;
+		},
 		pageCount() {
 			return Math.ceil(this.slideCount / this.slidesPerPage);
 		},
